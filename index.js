@@ -17,13 +17,16 @@ async function run(){
   try{
     const usersCollection = client.db('resellDB').collection('users');
     const categoriesCollection = client.db('resellDB').collection('categories');
+    const productsCollection = client.db('resellDB').collection('products');
 
+    //send jwt token
     app.post('/jwt', async(req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.JWT_SECRET);
       res.send({accessToken: token});
     })
 
+    //save user data
     app.post('/users' , async(req,res) => {
       const user = req.body;
       const query = {email: user.email};
@@ -35,11 +38,20 @@ async function run(){
       res.send(reslut);
     });
 
+    // get all categories
     app.get('/categories', async(req, res) => {
       const query = {};
       const result = await categoriesCollection.find(query).toArray();
       res.send(result);
     })
+
+    //save product in database
+    app.post('/products', async(req, res) => {
+      const product = req.body;
+      const result = await productsCollection.insertOne(product);
+      res.send(result);
+    })
+
 
 
 
