@@ -107,6 +107,13 @@ async function run() {
       res.send(result);
     });
 
+    //get advertised products only
+    app.get('/advertisedProducts', async(req, res) => {
+      const query = {advertise: true};
+      const result = await productsCollection.find(query).toArray();
+      res.send(result);
+    })
+
     //get seller specific products
     app.get("/sellerProducts", verifyJWT, async (req, res) => {
       const email = req.decoded.email;
