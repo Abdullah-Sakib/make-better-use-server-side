@@ -82,6 +82,39 @@ async function run() {
       res.send(result);
     });
 
+    //delete product
+    app.delete("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await productsCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.patch("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          advertise: true,
+        },
+      };
+      const result = await productsCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    //get seller specific products
+    app.get("/sellerProducts", verifyJWT, async (req, res) => {
+      const email = req.decoded.email;
+      const query = { sellerEmail: email };
+      const result = await productsCollection.find(query).toArray();
+      res.send(result);
+    });
+
     //save booked products
     app.post("/bookedProducts", async (req, res) => {
       const bookedProduct = req.body;
@@ -97,19 +130,39 @@ async function run() {
       res.send(result);
     });
 
-    //update booked product after payment 
-    app.patch('/bookedProducts/:id', async(req, res) =>{
-      const id = req.params.id;
-      const filter = {_id: ObjectId(id)};
-      const options = { upsert: true };
-      const updateDoc = {
+    //update booked product and seller Product after payment
+    app.patch("/bookedProducts", async (req, res) => {
+      //update main product id
+      const mainProductId = req.query.mainProductId;
+      const mainProductFilter = { _id: ObjectId(mainProductId) };
+      const mainProductOptions = { upsert: true };
+      const mainProductUpdatedDoc = {
         $set: {
-          paid: true
+          sold: true,
         },
       };
-      const result = await bookedProductsCollection.updateOne(filter, updateDoc, options);
-      res.send(result);
-    })
+      const mainProductResult = await productsCollection.updateOne(
+        mainProductFilter,
+        mainProductUpdatedDoc,
+        mainProductOptions
+      );
+
+      //update booked product id
+      const bookedProductId = req.query.bookedProductId;
+      const bookedProductFilter = { _id: ObjectId(bookedProductId) };
+      const bookedProductOptions = { upsert: true };
+      const bookedProductUpdateDoc = {
+        $set: {
+          paid: true,
+        },
+      };
+      const bookedProductResult = await bookedProductsCollection.updateOne(
+        bookedProductFilter,
+        bookedProductUpdateDoc,
+        bookedProductOptions
+      );
+      res.send({ bookedProductResult, mainProductResult });
+    });
 
     //get single product data
     app.get("/bookedProducts/:id", async (req, res) => {
@@ -133,11 +186,10 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       });
     });
+  }
 
+  finally {
 
-
-
-  } finally {
   }
 }
 run().catch((error) => console.log(error));
