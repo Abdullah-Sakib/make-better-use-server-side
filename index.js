@@ -7,7 +7,6 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-
 app.use(cors());
 app.use(express.json());
 
@@ -98,6 +97,20 @@ async function run() {
       res.send(result);
     });
 
+    //update booked product after payment 
+    app.patch('/bookedProducts/:id', async(req, res) =>{
+      const id = req.params.id;
+      const filter = {_id: ObjectId(id)};
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          paid: true
+        },
+      };
+      const result = await bookedProductsCollection.updateOne(filter, updateDoc, options);
+      res.send(result);
+    })
+
     //get single product data
     app.get("/bookedProducts/:id", async (req, res) => {
       const id = req.params.id;
@@ -108,20 +121,20 @@ async function run() {
 
     app.post("/create-payment-intent", async (req, res) => {
       const price = parseInt(req.body.price) * 100;
-    
+
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
         amount: price,
         currency: "usd",
-        "payment_method_types": [
-          "card"
-        ],
+        payment_method_types: ["card"],
       });
-    
+
       res.send({
         clientSecret: paymentIntent.client_secret,
       });
     });
+
+
 
 
   } finally {
