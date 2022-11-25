@@ -13,6 +13,21 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.3booq2e.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+const verifyJWT = (req, res, next) =>{
+  const authHeader = req.headers.authorization;
+  if(!authHeader){
+    return res.status(401).send({message: 'unauthorized access'});
+  }
+  const token = authHeader.split(' ')[1];
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if(err){
+      return res.status(401).send({message: 'forbidden access'})
+    }
+    req.decoded = decoded;
+    next();
+  }) 
+}
+
 async function run(){
   try{
     const usersCollection = client.db('resellDB').collection('users');
@@ -61,11 +76,19 @@ async function run(){
       res.send(result);
     })
 
-    //save  
+    //save booked products
     app.post('/bookedProducts', async(req, res) => {
       const bookedProduct = req.body;
       const result = await bookedProductsCollection.insertOne(bookedProduct);
       res.send(result);
+    })
+
+    //get my orders
+    app.get('/bookedProducts', verifyJWT, async(req, res) => {
+      const email = req.decoded.email;
+      const query = {userEmail: email};
+      const result = await bookedProductsCollection.find(query).toArray();
+      res.send(result)
     })
 
 
