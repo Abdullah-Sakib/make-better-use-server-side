@@ -18,6 +18,7 @@ async function run(){
     const usersCollection = client.db('resellDB').collection('users');
     const categoriesCollection = client.db('resellDB').collection('categories');
     const productsCollection = client.db('resellDB').collection('products');
+    const bookedProductsCollection = client.db('resellDB').collection('bookedProducts');
 
     //send jwt token
     app.post('/jwt', async(req, res) => {
@@ -52,8 +53,20 @@ async function run(){
       res.send(result);
     })
 
+    //get category products
+    app.get('/products', async(req, res) => {
+      const categoryName = req.query.name;
+      const query = {category: categoryName};
+      const result = await productsCollection.find(query).toArray();
+      res.send(result);
+    })
 
-
+    //save  
+    app.post('/bookedProducts', async(req, res) => {
+      const bookedProduct = req.body;
+      const result = await bookedProductsCollection.insertOne(bookedProduct);
+      res.send(result);
+    })
 
 
   }
