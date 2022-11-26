@@ -32,6 +32,8 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
+
+
 async function run() {
   try {
     const usersCollection = client.db("resellDB").collection("users");
@@ -49,8 +51,30 @@ async function run() {
       res.send({ accessToken: token });
     });
 
+    //verify admin
+    const verifyAdmin = async(req, res, next) => {
+      const email = req.decoded.email;
+      const query = {email: email};
+      const admin = await usersCollection.findOne(query);
+      if(admin.role !== "admin"){
+        return res.status(403).send({message: 'forbidden access'});
+      };
+      next();
+    };
+
+    //verify seller
+    const verifySeller = async(req, res, next) => {
+      const email = req.decoded.email;
+      const query = {email: email};
+      const admin = await usersCollection.findOne(query);
+      if(admin.role !== "seller"){
+        return res.status(403).send({message: 'forbidden access'});
+      };
+      next();
+    }
+
     //save user data
-    app.post("/users", async (req, res) => {
+    app.post("/users", verifyJWT, async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
       const checkUser = await usersCollection.findOne(query);
@@ -62,7 +86,7 @@ async function run() {
     });
 
     //get all sellers and all buyers
-    app.get('/users/:role', async(req, res) => {
+    app.get('/users/:role', verifyJWT, verifyAdmin, async(req, res) => {
       const role = req.params.role;
       const query = {role: role};
       const result = await usersCollection.find(query).toArray();
@@ -70,7 +94,7 @@ async function run() {
     })
   
     // delete buyer and seller
-    app.delete('/users/:id', async(req, res) => {
+    app.delete('/users/:id',verifyJWT, verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const query = {_id: ObjectId(id)};
       const result = await usersCollection.deleteOne(query);
@@ -78,7 +102,7 @@ async function run() {
     })
 
     // make verified seller
-    app.patch('/users', async(req, res) => {
+    app.patch('/users', verifyJWT, verifyAdmin, async(req, res) => {
       //update seller status in productsCollection
       const email = req.query.email;
       const productsFilter = {sellerEmail: email};
@@ -100,8 +124,15 @@ async function run() {
       };
       const result = await usersCollection.updateOne(filter, updatedDoc, options);
       res.send({result, productsResult});
-    })
+    });
 
+    //get user role
+    app.get('/userrole', verifyJWT, async(req, res) =>{
+      const email = req.decoded.email;
+      const query = {email: email};
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    } )
 
     // get all categories
     app.get("/categories", async (req, res) => {
@@ -111,7 +142,7 @@ async function run() {
     });
 
     //save product in database
-    app.post("/products", async (req, res) => {
+    app.post("/products", verifyJWT, verifySeller, async (req, res) => {
       const product = req.body;
       const result = await productsCollection.insertOne(product);
       res.send(result);
@@ -126,14 +157,15 @@ async function run() {
     });
 
     //delete product
-    app.delete("/products/:id", async (req, res) => {
+    app.delete("/products/:id",verifyJWT, verifySeller, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await productsCollection.deleteOne(query);
       res.send(result);
     });
 
-    app.patch("/products/:id", async (req, res) => {
+    //update advertised product
+    app.patch("/products/:id",verifyJWT, verifySeller, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: ObjectId(id) };
       const options = { upsert: true };
@@ -158,7 +190,7 @@ async function run() {
     })
 
     //get seller specific products
-    app.get("/sellerProducts", verifyJWT, async (req, res) => {
+    app.get("/sellerProducts", verifyJWT, verifySeller, async (req, res) => {
       const email = req.decoded.email;
       const query = { sellerEmail: email };
       const result = await productsCollection.find(query).toArray();
@@ -166,14 +198,14 @@ async function run() {
     });
 
     //save booked products
-    app.post("/bookedProducts", async (req, res) => {
+    app.post("/bookedProducts",verifyJWT, async (req, res) => {
       const bookedProduct = req.body;
       const result = await bookedProductsCollection.insertOne(bookedProduct);
       res.send(result);
     });
 
     //get my orders
-    app.get("/bookedProducts", verifyJWT, async (req, res) => {
+    app.get("/bookedProducts",verifyJWT, async (req, res) => {
       const email = req.decoded.email;
       const query = { userEmail: email };
       const result = await bookedProductsCollection.find(query).toArray();
@@ -181,7 +213,7 @@ async function run() {
     });
 
     //update booked product and seller Product after payment
-    app.patch("/bookedProducts", async (req, res) => {
+    app.patch("/bookedProducts", verifyJWT, async (req, res) => {
       //update main product id
       const mainProductId = req.query.mainProductId;
       const mainProductFilter = { _id: ObjectId(mainProductId) };
@@ -223,21 +255,21 @@ async function run() {
     });
 
     //add reported item
-    app.post('/reportedItems', async(req, res) => {
+    app.post('/reportedItems', verifyJWT, async(req, res) => {
       const item = req.body;
       const result = await reportedItemsCollection.insertOne(item);
       res.send(result);
     })
 
     //get reported items
-    app.get('/reportedItems', async(req, res) => {
+    app.get('/reportedItems',verifyJWT, verifyAdmin, async(req, res) => {
       const query = {};
       const items = await reportedItemsCollection.find(query).toArray();
       res.send(items);
     })
 
     //delete reported item
-    app.delete('/reportedItems', async(req, res) =>{
+    app.delete('/reportedItems',verifyJWT, async(req, res) =>{
       // delete product
       const productId = req.query.productId;
       const productQuery = {_id: ObjectId(productId)};
@@ -252,7 +284,7 @@ async function run() {
 
 
     //create payment intenet
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const price = parseInt(req.body.price) * 100;
 
       // Create a PaymentIntent with the order amount and currency
