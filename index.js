@@ -32,14 +32,14 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-
-
 async function run() {
   try {
     const usersCollection = client.db("resellDB").collection("users");
     const categoriesCollection = client.db("resellDB").collection("categories");
     const productsCollection = client.db("resellDB").collection("products");
-    const reportedItemsCollection = client.db("resellDB").collection("reportedItems");
+    const reportedItemsCollection = client
+      .db("resellDB")
+      .collection("reportedItems");
     const bookedProductsCollection = client
       .db("resellDB")
       .collection("bookedProducts");
@@ -52,26 +52,26 @@ async function run() {
     });
 
     //verify admin
-    const verifyAdmin = async(req, res, next) => {
+    const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
-      const query = {email: email};
+      const query = { email: email };
       const admin = await usersCollection.findOne(query);
-      if(admin.role !== "admin"){
-        return res.status(403).send({message: 'forbidden access'});
-      };
+      if (admin.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       next();
     };
 
     //verify seller
-    const verifySeller = async(req, res, next) => {
+    const verifySeller = async (req, res, next) => {
       const email = req.decoded.email;
-      const query = {email: email};
+      const query = { email: email };
       const admin = await usersCollection.findOne(query);
-      if(admin.role !== "seller"){
-        return res.status(403).send({message: 'forbidden access'});
-      };
+      if (admin.role !== "seller") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       next();
-    }
+    };
 
     //save user data
     app.post("/users", verifyJWT, async (req, res) => {
@@ -86,53 +86,60 @@ async function run() {
     });
 
     //get all sellers and all buyers
-    app.get('/users/:role', verifyJWT, verifyAdmin, async(req, res) => {
+    app.get("/users/:role", verifyJWT, verifyAdmin, async (req, res) => {
       const role = req.params.role;
-      const query = {role: role};
+      const query = { role: role };
       const result = await usersCollection.find(query).toArray();
       res.send(result);
-    })
-  
+    });
+
     // delete buyer and seller
-    app.delete('/users/:id',verifyJWT, verifyAdmin, async(req, res) => {
+    app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
-      const query = {_id: ObjectId(id)};
+      const query = { _id: ObjectId(id) };
       const result = await usersCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
     // make verified seller
-    app.patch('/users', verifyJWT, verifyAdmin, async(req, res) => {
+    app.patch("/users", verifyJWT, verifyAdmin, async (req, res) => {
       //update seller status in productsCollection
       const email = req.query.email;
-      const productsFilter = {sellerEmail: email};
+      const productsFilter = { sellerEmail: email };
       const productsUpdatedDoc = {
-        $set:{
-          verifiedSeller: true
-        }
+        $set: {
+          verifiedSeller: true,
+        },
       };
-      const productsResult = await productsCollection.updateMany(productsFilter, productsUpdatedDoc);
+      const productsResult = await productsCollection.updateMany(
+        productsFilter,
+        productsUpdatedDoc
+      );
 
       //update sellers in uesrsCollection
       const id = req.query.id;
-      const filter = {_id: ObjectId(id)};
-      const options = {upsert: true};
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
       const updatedDoc = {
         $set: {
-          verifiedSeller: true
-        }
+          verifiedSeller: true,
+        },
       };
-      const result = await usersCollection.updateOne(filter, updatedDoc, options);
-      res.send({result, productsResult});
+      const result = await usersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send({ result, productsResult });
     });
 
     //get user role
-    app.get('/userrole', verifyJWT, async(req, res) =>{
+    app.get("/userrole", verifyJWT, async (req, res) => {
       const email = req.decoded.email;
-      const query = {email: email};
+      const query = { email: email };
       const result = await usersCollection.findOne(query);
       res.send(result);
-    } )
+    });
 
     // get all categories
     app.get("/categories", async (req, res) => {
@@ -157,7 +164,7 @@ async function run() {
     });
 
     //delete product
-    app.delete("/products/:id",verifyJWT, verifySeller, async (req, res) => {
+    app.delete("/products/:id", verifyJWT, verifySeller, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await productsCollection.deleteOne(query);
@@ -165,7 +172,7 @@ async function run() {
     });
 
     //update advertised product
-    app.patch("/products/:id",verifyJWT, verifySeller, async (req, res) => {
+    app.patch("/products/:id", verifyJWT, verifySeller, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: ObjectId(id) };
       const options = { upsert: true };
@@ -183,11 +190,11 @@ async function run() {
     });
 
     //get advertised products only
-    app.get('/advertisedProducts', async(req, res) => {
-      const query = {advertise: true};
+    app.get("/advertisedProducts", async (req, res) => {
+      const query = { advertise: true };
       const result = await productsCollection.find(query).toArray();
       res.send(result);
-    })
+    });
 
     //get seller specific products
     app.get("/sellerProducts", verifyJWT, verifySeller, async (req, res) => {
@@ -198,14 +205,14 @@ async function run() {
     });
 
     //save booked products
-    app.post("/bookedProducts",verifyJWT, async (req, res) => {
+    app.post("/bookedProducts", verifyJWT, async (req, res) => {
       const bookedProduct = req.body;
       const result = await bookedProductsCollection.insertOne(bookedProduct);
       res.send(result);
     });
 
     //get my orders
-    app.get("/bookedProducts",verifyJWT, async (req, res) => {
+    app.get("/bookedProducts", verifyJWT, async (req, res) => {
       const email = req.decoded.email;
       const query = { userEmail: email };
       const result = await bookedProductsCollection.find(query).toArray();
@@ -255,33 +262,32 @@ async function run() {
     });
 
     //add reported item
-    app.post('/reportedItems', verifyJWT, async(req, res) => {
+    app.post("/reportedItems", verifyJWT, async (req, res) => {
       const item = req.body;
       const result = await reportedItemsCollection.insertOne(item);
       res.send(result);
-    })
+    });
 
     //get reported items
-    app.get('/reportedItems',verifyJWT, verifyAdmin, async(req, res) => {
+    app.get("/reportedItems", verifyJWT, verifyAdmin, async (req, res) => {
       const query = {};
       const items = await reportedItemsCollection.find(query).toArray();
       res.send(items);
-    })
+    });
 
     //delete reported item
-    app.delete('/reportedItems',verifyJWT, async(req, res) =>{
+    app.delete("/reportedItems", verifyJWT, async (req, res) => {
       // delete product
       const productId = req.query.productId;
-      const productQuery = {_id: ObjectId(productId)};
+      const productQuery = { _id: ObjectId(productId) };
       const productResult = await productsCollection.deleteOne(productQuery);
 
       //delete report
       const reportId = req.query.id;
-      const reportQuery = {_id: ObjectId(reportId)};
+      const reportQuery = { _id: ObjectId(reportId) };
       const reportResult = await reportedItemsCollection.deleteOne(reportQuery);
-      res.send({productResult, reportResult});
-    })
-
+      res.send({ productResult, reportResult });
+    });
 
     //create payment intenet
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
@@ -298,10 +304,7 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       });
     });
-  }
-
-  finally {
-
+  } finally {
   }
 }
 run().catch((error) => console.log(error));
