@@ -37,6 +37,7 @@ async function run() {
     const usersCollection = client.db("resellDB").collection("users");
     const categoriesCollection = client.db("resellDB").collection("categories");
     const productsCollection = client.db("resellDB").collection("products");
+    const reportedItemsCollection = client.db("resellDB").collection("reportedItems");
     const bookedProductsCollection = client
       .db("resellDB")
       .collection("bookedProducts");
@@ -67,6 +68,40 @@ async function run() {
       const result = await usersCollection.find(query).toArray();
       res.send(result);
     })
+  
+    // delete buyer and seller
+    app.delete('/users/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: ObjectId(id)};
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    // make verified seller
+    app.patch('/users', async(req, res) => {
+      //update seller status in productsCollection
+      const email = req.query.email;
+      const productsFilter = {sellerEmail: email};
+      const productsUpdatedDoc = {
+        $set:{
+          verifiedSeller: true
+        }
+      };
+      const productsResult = await productsCollection.updateMany(productsFilter, productsUpdatedDoc);
+
+      //update sellers in uesrsCollection
+      const id = req.query.id;
+      const filter = {_id: ObjectId(id)};
+      const options = {upsert: true};
+      const updatedDoc = {
+        $set: {
+          verifiedSeller: true
+        }
+      };
+      const result = await usersCollection.updateOne(filter, updatedDoc, options);
+      res.send({result, productsResult});
+    })
+
 
     // get all categories
     app.get("/categories", async (req, res) => {
@@ -187,6 +222,36 @@ async function run() {
       res.send(result);
     });
 
+    //add reported item
+    app.post('/reportedItems', async(req, res) => {
+      const item = req.body;
+      const result = await reportedItemsCollection.insertOne(item);
+      res.send(result);
+    })
+
+    //get reported items
+    app.get('/reportedItems', async(req, res) => {
+      const query = {};
+      const items = await reportedItemsCollection.find(query).toArray();
+      res.send(items);
+    })
+
+    //delete reported item
+    app.delete('/reportedItems', async(req, res) =>{
+      // delete product
+      const productId = req.query.productId;
+      const productQuery = {_id: ObjectId(productId)};
+      const productResult = await productsCollection.deleteOne(productQuery);
+
+      //delete report
+      const reportId = req.query.id;
+      const reportQuery = {_id: ObjectId(reportId)};
+      const reportResult = await reportedItemsCollection.deleteOne(reportQuery);
+      res.send({productResult, reportResult});
+    })
+
+
+    //create payment intenet
     app.post("/create-payment-intent", async (req, res) => {
       const price = parseInt(req.body.price) * 100;
 
