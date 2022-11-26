@@ -60,6 +60,14 @@ async function run() {
       res.send(reslut);
     });
 
+    //get all sellers and all buyers
+    app.get('/users/:role', async(req, res) => {
+      const role = req.params.role;
+      const query = {role: role};
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    })
+
     // get all categories
     app.get("/categories", async (req, res) => {
       const query = {};
