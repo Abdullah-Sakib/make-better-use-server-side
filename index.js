@@ -239,7 +239,7 @@ async function run() {
     });
 
     //update booked product and seller Product after payment
-    app.patch("/bookedProducts", verifyJWT, async (req, res) => {
+    app.put("/bookedProducts", verifyJWT, async (req, res) => {
       //update main product id
       const mainProductId = req.query.mainProductId;
       const mainProductFilter = { _id: ObjectId(mainProductId) };
