@@ -74,7 +74,7 @@ async function run() {
     };
 
     //save user data
-    app.post("/users", verifyJWT, async (req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
       const checkUser = await usersCollection.findOne(query);
@@ -188,6 +188,25 @@ async function run() {
       );
       res.send(result);
     });
+
+    //stop advertisement
+    app.patch("/product/stopadd/:id", verifyJWT, verifySeller, async(req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          advertise: false,
+        },
+      };
+      const result = await productsCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    })
+
 
     //get advertised products only
     app.get("/advertisedProducts", async (req, res) => {
